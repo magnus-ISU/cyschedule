@@ -1,5 +1,5 @@
 #!/bin/bash
-curl 'http://localhost:8080/classes.iastate.edu/app/rest/courses/preferences' \
+curl 'https://cors-anywhere.herokuapp.com/https://classes.iastate.edu/app/rest/courses/preferences' \
  -X POST \
  -H 'Content-Type: application/json; charset=UTF-8' \
  -H 'Origin: https://classes.iastate.edu' \
