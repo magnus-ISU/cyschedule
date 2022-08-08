@@ -65,7 +65,7 @@ func serve_department(response http.ResponseWriter, request *http.Request) {
 	url := request.URL.Path
 	sections := strings.Split(url, "/")
 	term := sections[2]
-	department := sections[3]
+	department := strings.ToUpper(sections[3])
 	log.Printf("Reading department %q term %q", department, term)
 	json_response, err := read_department(term, department)
 	response.Header().Add("Access-Control-Allow-Origin", "*")
