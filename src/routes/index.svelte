@@ -1,27 +1,17 @@
 <script lang="ts">
-	let terms: Object = []
+	let terms: any[] = []
 	let departments: Object[] = []
 	let selected_term = 1
 	let selected_department = "math"
 	let classes: string = ""
 	let data_pulled_for = {}
-	function term_names_to_term_ids(terms: any[]): Object {
-		let retval = Object.create(null)
-		terms.forEach((x) => {
-			let n: string = x.semesterTitle
-			let id: number = x.id
-			retval[n] = id
-		})
-		console.log(retval)
-		return retval
-	}
 	async function read_form_defaults() {
 		fetch(`http://127.0.0.1:8081/info/`, {
 			method: "GET",
 		})
 			.then((x) => x.json())
 			.then((x) => {
-				terms = term_names_to_term_ids(x["semesters"])
+				terms = x["semesters"]
 				departments = x["departments"]
 				console.log(departments)
 				console.log(terms)
@@ -35,8 +25,12 @@
 </script>
 
 <h1>Welcome to SvelteKit</h1>
-{if terms is not undefined}
-
+{#if terms != undefined}
+	{#each terms as term}
+		<p>
+			{term.semesterTitle}
+		</p>
+	{/each}
 {/if}
 <p>
 	{departments}
