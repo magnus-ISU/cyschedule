@@ -58,6 +58,7 @@
 	}
 
 	const dept_name_regex = /[a-zA-Z ]+/
+	const class_number_regex = /[0-9]+/
 
 	let terms: Term[] | undefined
 	let selected_term: Term | undefined
@@ -70,6 +71,9 @@
 
 	function dept_name_from_class_title(s: string) {
 		return (s.match(dept_name_regex) || [""])[0].trim()
+	}
+	function class_number_from_class_title(s: string) {
+		return (s.match(class_number_regex) || [""])[0].trim()
 	}
 
 	function dict_from_arr_based_on_key(arr: any[], key: string): Record<string, any> {
@@ -92,7 +96,6 @@
 			classes_pulled_for_departments_for_terms[selected_term.id] = {}
 		}
 		let classes_pulled_for_departments = classes_pulled_for_departments_for_terms[selected_term.id]
-		console.log("recomputing valid departments and invalid ones")
 		let classes: string[] = classes_textboxes[selected_term.id].split("\n")
 		let retval = null
 		classes.forEach((c) => {
@@ -102,13 +105,21 @@
 				// Check if number is valid and if we have to pull some stuff
 				let dept_name_abbr = dept_name
 				if (dept_name in titles_to_abbreviations) dept_name_abbr = titles_to_abbreviations[dept_name]
-				console.log(dept_name_abbr)
-				if (dept_name_abbr in classes_pulled_for_departments) {
+				const class_number = class_number_from_class_title(c)
+				const abbr_number = `${dept_name_abbr} ${class_number}`
+				if (valid_classes_selected.has(abbr_number)) {
+					// Do nothing, we have already processed this class
+				} else if (dept_name_abbr in classes_pulled_for_departments) {
 					// Check if number is valid
-					if (classes_pulled_for_departments[dept_name_abbr] === undefined) {
+					const dept_classes = classes_pulled_for_departments[dept_name_abbr]
+					if (dept_classes === undefined) {
 						// Do nothing, it is not loaded yet
+					} else if (class_number in dept_classes) {
+						// It is a valid class, add the information to a set. If nothing changes, great. If something is added, update reactive elements
+						valid_classes_selected.add(abbr_number)
+						valid_classes_selected = valid_classes_selected
 					} else {
-						// TODO get information for the class
+						retval = c
 					}
 				} else {
 					// Pull the number and set it to undefined
@@ -124,7 +135,7 @@
 	}
 
 	$: invalid_department_name = discover_valid_classes_selected(selected_term, classes_textboxes, classes_pulled_for_departments_for_terms)
-	$: console.log(invalid_department_name)
+	$: console.log(valid_classes_selected)
 
 	async function read_department_classes(term: number, department: string) {
 		fetch(`http://127.0.0.1:8081/department/${term}/${department}`, {
