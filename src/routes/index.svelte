@@ -2,6 +2,7 @@
 	import Tab, { Label } from "@smui/tab"
 	import TabBar from "@smui/tab-bar"
 	import Textfield from "@smui/textfield"
+	import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
 
 	interface Term {
 		semesterTitle: string
@@ -66,7 +67,7 @@
 
 	let terms: Term[] | undefined
 	let selected_term: Term | undefined
-	let departments: Department[]
+	let departments: Record<string, Department>
 
 	// TODO change class numbers to actual numbers
 	let classes_textboxes: Record<number, string> = {}
@@ -78,6 +79,9 @@
 	let valid_classes_selected: Set<string> = new Set()
 	let valid_classes_selected_deletewatcher: Set<string> = new Set()
 
+	let courses_for_last_valid_department_invalid_number: Class[] = []
+	let department_for_last_valid_department_invalid_number: Department
+
 	function dept_name_from_class_title(s: string) {
 		return (s.match(dept_name_regex) || [""])[0].trim()
 	}
@@ -88,7 +92,7 @@
 	function dict_from_arr_based_on_key(arr: any[], key: string): Record<string, any> {
 		let retval: Record<string, any> = {}
 		arr.forEach((e: any) => {
-			retval[e[key]] = e
+			retval[e[key].toLowerCase()] = e
 		})
 		return retval
 	}
@@ -107,7 +111,8 @@
 		let classes_pulled_for_departments = classes_pulled_for_departments_for_terms[selected_term.id]
 		let classes: string[] = classes_textboxes[selected_term.id].split("\n")
 		valid_classes_selected_deletewatcher.clear()
-		let retval = null
+		let invalid_dept = null
+		let invalid_course = null
 		classes.forEach((c) => {
 			if (c === "") return
 			const dept_name = dept_name_from_class_title(c)
@@ -131,7 +136,14 @@
 						valid_classes_selected_deletewatcher.add(abbr_number)
 						valid_classes_selected = valid_classes_selected
 					} else {
-						retval = c
+						// TODO invalid number, valid department
+						console.log(c)
+						invalid_course = c
+						department_for_last_valid_department_invalid_number = departments[dept_name_abbr]
+						console.log(dept_name_abbr)
+						console.log(departments)
+						console.log(department_for_last_valid_department_invalid_number)
+						courses_for_last_valid_department_invalid_number = Object.values(dept_classes)
 					}
 				} else {
 					// Pull the number and set it to undefined
@@ -139,14 +151,16 @@
 					read_department_classes(selected_term.id, dept_name_abbr)
 				}
 			} else {
-				retval = c
+				invalid_dept = dept_name
 			}
 		})
 		if (valid_classes_selected.size !== valid_classes_selected_deletewatcher.size) {
 			valid_classes_selected = new Set(valid_classes_selected_deletewatcher)
 		}
 
-		return retval
+		if (invalid_dept !== null) return `Invalid department: ${invalid_dept}`
+		if (invalid_course !== null) return `Invalid course: ${invalid_course}`
+		return null
 	}
 
 	$: invalid_department_name = discover_valid_classes_selected(selected_term, classes_textboxes, classes_pulled_for_departments_for_terms)
@@ -159,10 +173,7 @@
 			.then((x) => x.json())
 			.then((x) => {
 				classes_pulled_for_departments_for_terms[term][department] = dict_from_arr_based_on_key(x.response, 'classNumber')
-				let class_dict: Record<string, Class> | undefined = classes_pulled_for_departments_for_terms[term][department]
-				Object.assign(class_dict!, dict_from_arr_based_on_key(x.response, 'classTitle'))
 				console.log(x.response)
-				console.log(class_dict)
 			})
 			.catch((err) => {
 				console.log(`error reading department: ${err}`)
@@ -181,8 +192,9 @@
 				})
 				selected_term = x.semesters[0]
 				terms = x.semesters
-				departments = x.departments
-				departments.forEach((d) => {
+				console.log('departments: ', x.departments)
+				departments = dict_from_arr_based_on_key(x.departments, 'abbreviation')
+				x.departments.forEach((d: Department) => {
 					const abbr = d.abbreviation.toLowerCase()
 					const titl = d.title.toLowerCase()
 					valid_departments.add(abbr)
@@ -212,4 +224,18 @@
 	{#if invalid_department_name !== null}
 		<p>{invalid_department_name} is invalid</p>
 	{/if}
+	<Accordion multiple>
+		{#each courses_for_last_valid_department_invalid_number as course}
+			<Panel>
+				<Header>
+					{course.classTitle}
+					<span slot="description">{department_for_last_valid_department_invalid_number.abbreviation} {course.classNumber}</span>
+				</Header>
+				<Content>
+					{course.classComments}
+				</Content>
+			</Panel>
+		{/each}
+	</Accordion>
 {/if}
+<br/>
