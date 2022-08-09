@@ -57,17 +57,26 @@
 		sections: Section[]
 	}
 
+	const hardcoded_departments = {
+		'cs': 'com s'
+	}
+
 	const dept_name_regex = /[a-zA-Z ]+/
 	const class_number_regex = /[0-9]+/
 
 	let terms: Term[] | undefined
 	let selected_term: Term | undefined
 	let departments: Department[]
+
+	// TODO change class numbers to actual numbers
 	let classes_textboxes: Record<number, string> = {}
-	let classes_pulled_for_departments_for_terms: Record<number, Record<string, Record<string, Class[]> | undefined>> = {}
-	let valid_departments: Set<string> = new Set()
-	let titles_to_abbreviations: Record<string, string> = {}
+	let classes_pulled_for_departments_for_terms: Record<number, Record<string, Record<string, Class> | undefined>> = {}
+
+	let department_titles_to_abbreviations: Record<string, string> = hardcoded_departments
+	let valid_departments: Set<string> = new Set(Object.keys(hardcoded_departments))
+
 	let valid_classes_selected: Set<string> = new Set()
+	let valid_classes_selected_deletewatcher: Set<string> = new Set()
 
 	function dept_name_from_class_title(s: string) {
 		return (s.match(dept_name_regex) || [""])[0].trim()
@@ -87,7 +96,7 @@
 	function discover_valid_classes_selected(
 		selected_term: Term | undefined,
 		classes_textboxes: Record<number, string>,
-		classes_pulled_for_departments_for_terms: Record<string, Record<string, Record<string, Class[]> | undefined>>
+		classes_pulled_for_departments_for_terms: Record<string, Record<string, Record<string, Class> | undefined>>
 	): undefined | null | string {
 		if (selected_term === undefined) {
 			return undefined
@@ -97,6 +106,7 @@
 		}
 		let classes_pulled_for_departments = classes_pulled_for_departments_for_terms[selected_term.id]
 		let classes: string[] = classes_textboxes[selected_term.id].split("\n")
+		valid_classes_selected_deletewatcher.clear()
 		let retval = null
 		classes.forEach((c) => {
 			if (c === "") return
@@ -104,11 +114,12 @@
 			if (valid_departments.has(dept_name)) {
 				// Check if number is valid and if we have to pull some stuff
 				let dept_name_abbr = dept_name
-				if (dept_name in titles_to_abbreviations) dept_name_abbr = titles_to_abbreviations[dept_name]
+				if (dept_name in department_titles_to_abbreviations) dept_name_abbr = department_titles_to_abbreviations[dept_name]
 				const class_number = class_number_from_class_title(c)
 				const abbr_number = `${dept_name_abbr} ${class_number}`
 				if (valid_classes_selected.has(abbr_number)) {
-					// Do nothing, we have already processed this class
+					// We already processed this, so do nothing except note it wasn't deleted
+					valid_classes_selected_deletewatcher.add(abbr_number)
 				} else if (dept_name_abbr in classes_pulled_for_departments) {
 					// Check if number is valid
 					const dept_classes = classes_pulled_for_departments[dept_name_abbr]
@@ -117,6 +128,7 @@
 					} else if (class_number in dept_classes) {
 						// It is a valid class, add the information to a set. If nothing changes, great. If something is added, update reactive elements
 						valid_classes_selected.add(abbr_number)
+						valid_classes_selected_deletewatcher.add(abbr_number)
 						valid_classes_selected = valid_classes_selected
 					} else {
 						retval = c
@@ -130,6 +142,9 @@
 				retval = c
 			}
 		})
+		if (valid_classes_selected.size !== valid_classes_selected_deletewatcher.size) {
+			valid_classes_selected = new Set(valid_classes_selected_deletewatcher)
+		}
 
 		return retval
 	}
@@ -144,7 +159,10 @@
 			.then((x) => x.json())
 			.then((x) => {
 				classes_pulled_for_departments_for_terms[term][department] = dict_from_arr_based_on_key(x.response, 'classNumber')
+				let class_dict: Record<string, Class> | undefined = classes_pulled_for_departments_for_terms[term][department]
+				Object.assign(class_dict!, dict_from_arr_based_on_key(x.response, 'classTitle'))
 				console.log(x.response)
+				console.log(class_dict)
 			})
 			.catch((err) => {
 				console.log(`error reading department: ${err}`)
@@ -169,7 +187,7 @@
 					const titl = d.title.toLowerCase()
 					valid_departments.add(abbr)
 					valid_departments.add(titl)
-					titles_to_abbreviations[titl] = abbr
+					department_titles_to_abbreviations[titl] = abbr
 				})
 				console.log(valid_departments)
 				console.log(terms)
@@ -183,7 +201,7 @@
 	read_form_defaults()
 </script>
 
-{#if terms != undefined && selected_term != undefined}
+{#if terms !== undefined && selected_term !== undefined}
 	<TabBar tabs={terms} let:tab bind:active={selected_term}>
 		<Tab {tab}>
 			<Label>{tab.semesterTitle}</Label>
@@ -191,7 +209,7 @@
 	</TabBar>
 	<br />
 	<Textfield textarea bind:value={classes_textboxes[selected_term.id]} label={"Classes for " + selected_term.semesterTitle} input$rows={10} input$cols={24} />
-	{#if invalid_department_name != null}
+	{#if invalid_department_name !== null}
 		<p>{invalid_department_name} is invalid</p>
 	{/if}
 {/if}
