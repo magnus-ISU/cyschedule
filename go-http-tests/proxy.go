@@ -48,7 +48,7 @@ func read_class_info(class_abbr_numb string, class_edition string) (string, erro
 	}
 	req, err := http.NewRequest(
 		"GET",
-		`https://classes.iastate.edu/app/rest/catalog/${string}/${edition}`,
+		`https://classes.iastate.edu/app/rest/catalog/`+class_abbr_numb+`/`+class_edition,
 		nil,
 	)
 	if err != nil {

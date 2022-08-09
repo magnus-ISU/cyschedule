@@ -23,17 +23,20 @@
 		buildingName: string
 		roomNum: string
 		meetTimeDisplay: string
+		startTime: string
+		stopTime: string
 		meetDaysDisplay: string
+		meetDays: string
 	}
 
 	interface Section {
 		referenceNumber: string
-		openSeats: number
+		openseats: number
 		creditLow: number
 		creditHigh: number
 		startDateVal: string
 		stopDateVal: string
-		sectionTimes: SectionTime
+		sectionTimes: SectionTime[]
 		partialSemesterComment: string
 		specialPermissionRequirementsDisplay: string
 		workshopFeeDisplay: string
@@ -90,6 +93,27 @@
 	}
 	function class_number_from_class_title(s: string) {
 		return (s.match(class_number_regex) || [""])[0].trim()
+	}
+
+	function timestamp_to_military(ts: string): string {
+		let s = ts.split(':',3)
+		return `${s[0]}:${s[1]}`
+	}
+
+	function formatted_section_time(sectionTime: SectionTime): string {
+		if (sectionTime.meetTimeDisplay.startsWith('Arrang')) {
+			return `${sectionTime.meetTimeDisplay} ${sectionTime.meetDaysDisplay}`
+		}
+		return `meets ${timestamp_to_military(sectionTime.startTime)}-${timestamp_to_military(sectionTime.stopTime)} ${sectionTime.meetDays.replaceAll(' ', '')}`
+	}
+
+	function formatted_section_instructor_location(sectionTime: SectionTime): string {
+		return `${sectionTime.instrName} @ ${sectionTime.buildingName} ${sectionTime.roomNum.trim()}`
+	}
+
+	function silly_loading_name() {
+		let silly = ['Searching for squirrels...', 'Looking for APIs']
+		return silly[~~(Math.random() * silly.length)];
 	}
 
 	function dict_from_arr_based_on_key(arr: any[], key: string): Record<string, any> {
@@ -181,23 +205,24 @@
 	}
 
 	async function read_class_rich_info(class_name: string, class_number: string, class_info: Class) {
-		fetch(`http://127.0.0.1:8081/classinfo/${class_name}%20${class_number}/${class_info.edition}`, {
+		if (class_info.human_readable_name !== undefined) return
+		await fetch(`http://127.0.0.1:8081/classinfo/${class_name}%20${class_number}/${class_info.edition}`, {
 			method: "GET",
 		})
-			.then((x) => x.json())
+			.then((x) => {console.log(x); return x.text()})
 			.then((x) => {
-				console.log(x)
-				class_info.human_readable_description = x
+				class_info['human_readable_description'] = x
 				class_info.human_readable_name = x
 			})
 			.catch((err) => {
 				console.log(`error reading department: ${err}`)
 				// TODO handle a network error
 			})
+		courses_for_last_valid_department_invalid_number = courses_for_last_valid_department_invalid_number 
 	}
 
 	async function read_form_defaults() {
-		fetch(`http://127.0.0.1:8081/info/`, {
+		await fetch(`http://127.0.0.1:8081/info/`, {
 			method: "GET",
 		})
 			.then((x) => x.json())
@@ -241,13 +266,33 @@
 	{/if}
 	<Accordion multiple>
 		{#each courses_for_last_valid_department_invalid_number as course}
-			<Panel on:click={()=>alert('test')}>
+			<Panel on:click={()=>{read_class_rich_info(department_for_last_valid_department_invalid_number.abbreviation, course.classNumber, course)}}>
 				<Header>
 					{course.classTitle}
 					<span slot="description">{department_for_last_valid_department_invalid_number.abbreviation} {course.classNumber}</span>
 				</Header>
 				<Content>
-					{course.classComments}
+					{#if course.human_readable_description !== undefined}
+						{@html course.human_readable_description}
+					{:else}
+						{silly_loading_name()} <br/>
+					{/if}
+					<Accordion>
+						{#each course.sections as section}
+							<Panel color="secondary">
+								<Header>
+									{section.sectionString}
+									<span slot="description">{`${section.openseats} open seats`}</span>
+								</Header>
+								<Content>
+									{#each section.sectionTimes as t}
+										<p> {`${formatted_section_instructor_location(t)} ${formatted_section_time(t)}`} </p>
+									{/each}
+								</Content>
+							</Panel>
+						{/each}
+					</Accordion>
+					{#if course.classComments !== ''}{course.classComments.toLowerCase().replaceAll('<br>', '')}<br/>{/if}
 				</Content>
 			</Panel>
 		{/each}
