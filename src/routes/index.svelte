@@ -56,6 +56,9 @@
 		classComments: string
 		classPreReqs: string
 		sections: Section[]
+		edition: string
+		human_readable_description: string | undefined
+		human_readable_name: string | undefined
 	}
 
 	const hardcoded_departments = {
@@ -137,13 +140,9 @@
 						valid_classes_selected = valid_classes_selected
 					} else {
 						// TODO invalid number, valid department
-						console.log(c)
 						invalid_course = c
 						department_for_last_valid_department_invalid_number = departments[dept_name_abbr]
-						console.log(dept_name_abbr)
-						console.log(departments)
-						console.log(department_for_last_valid_department_invalid_number)
-						courses_for_last_valid_department_invalid_number = Object.values(dept_classes)
+						courses_for_last_valid_department_invalid_number = Object.values(dept_classes).filter((v) => v.classNumber.includes(class_number))
 					}
 				} else {
 					// Pull the number and set it to undefined
@@ -173,7 +172,23 @@
 			.then((x) => x.json())
 			.then((x) => {
 				classes_pulled_for_departments_for_terms[term][department] = dict_from_arr_based_on_key(x.response, 'classNumber')
-				console.log(x.response)
+				console.log(x)
+			})
+			.catch((err) => {
+				console.log(`error reading department: ${err}`)
+				// TODO handle a network error
+			})
+	}
+
+	async function read_class_rich_info(class_name: string, class_number: string, class_info: Class) {
+		fetch(`http://127.0.0.1:8081/classinfo/${class_name}%20${class_number}/${class_info.edition}`, {
+			method: "GET",
+		})
+			.then((x) => x.json())
+			.then((x) => {
+				console.log(x)
+				class_info.human_readable_description = x
+				class_info.human_readable_name = x
 			})
 			.catch((err) => {
 				console.log(`error reading department: ${err}`)
@@ -227,7 +242,7 @@
 	<Accordion multiple>
 		{#each courses_for_last_valid_department_invalid_number as course}
 			<Panel>
-				<Header>
+				<Header onclick={()=>alert('test')}>
 					{course.classTitle}
 					<span slot="description">{department_for_last_valid_department_invalid_number.abbreviation} {course.classNumber}</span>
 				</Header>

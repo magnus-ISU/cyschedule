@@ -13,6 +13,7 @@ func main() {
 	log.Println("Serving content...")
 	http.HandleFunc("/department/", serve_department)
 	http.HandleFunc("/info/", serve_form_defaults)
+	http.HandleFunc("/classinfo/", serve_class_info)
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }
 
@@ -30,6 +31,30 @@ func read_department(term string, department string) (string, error) {
 	}
 	req.Header.Set("user-agent", "proxy server because you don't allow CORS")
 	req.Header.Add("Content-Type", "application/json; charset=UTF-8")
+
+	response, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("Got error reading classes api %s", err.Error())
+	}
+	defer response.Body.Close()
+	buf := new(strings.Builder)
+	_, err = io.Copy(buf, response.Body)
+	return buf.String(), nil
+}
+
+func read_class_info(class_abbr_numb string, class_edition string) (string, error) {
+	client := &http.Client{
+		Timeout: time.Second * 10,
+	}
+	req, err := http.NewRequest(
+		"GET",
+		`https://classes.iastate.edu/app/rest/catalog/${string}/${edition}`,
+		nil,
+	)
+	if err != nil {
+		return "", fmt.Errorf("Got error %s", err.Error())
+	}
+	req.Header.Set("user-agent", "proxy server because you don't allow CORS")
 
 	response, err := client.Do(req)
 	if err != nil {
@@ -59,6 +84,21 @@ func read_form_defaults() (string, error) {
 	buf := new(strings.Builder)
 	_, err = io.Copy(buf, response.Body)
 	return buf.String(), nil
+}
+
+func serve_class_info(response http.ResponseWriter, request *http.Request) {
+	url := request.URL.Path
+	sections := strings.Split(url, "/")
+	class_abbr_numb := strings.ToUpper(sections[2])
+	class_edition := sections[3]
+	log.Printf("Reading class %q edition %q", class_abbr_numb, class_edition)
+	json_response, err := read_class_info(class_abbr_numb, class_edition)
+	response.Header().Add("Access-Control-Allow-Origin", "*")
+	if err != nil {
+		fmt.Fprintf(response, "Error in reading API for class %q edition %q", class_abbr_numb, class_edition)
+	} else {
+		fmt.Fprintf(response, "%s", json_response)
+	}
 }
 
 func serve_department(response http.ResponseWriter, request *http.Request) {
