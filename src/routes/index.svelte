@@ -241,8 +241,8 @@
 	{/if}
 	<Accordion multiple>
 		{#each courses_for_last_valid_department_invalid_number as course}
-			<Panel>
-				<Header onclick={()=>alert('test')}>
+			<Panel on:click={()=>alert('test')}>
+				<Header>
 					{course.classTitle}
 					<span slot="description">{department_for_last_valid_department_invalid_number.abbreviation} {course.classNumber}</span>
 				</Header>
