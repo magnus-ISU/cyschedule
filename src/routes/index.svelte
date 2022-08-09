@@ -63,7 +63,7 @@
 	let selected_term: Term | undefined
 	let departments: Department[]
 	let classes_textboxes: Record<number, string> = {}
-	let classes_pulled_for_departments_for_terms: Record<number, Record<string, Class[] | undefined>> = {}
+	let classes_pulled_for_departments_for_terms: Record<number, Record<string, Record<string, Class[]> | undefined>> = {}
 	let valid_departments: Set<string> = new Set()
 	let titles_to_abbreviations: Record<string, string> = {}
 	let valid_classes_selected: Set<string> = new Set()
@@ -72,7 +72,19 @@
 		return (s.match(dept_name_regex) || [""])[0].trim()
 	}
 
-	function discover_valid_classes_selected(selected_term: Term | undefined, classes_textboxes: Record<number, string>, classes_pulled_for_departments_for_terms: Record<string, Record<string, Class[] | undefined>>) {
+	function dict_from_arr_based_on_key(arr: any[], key: string): Record<string, any> {
+		let retval: Record<string, any> = {}
+		arr.forEach((e: any) => {
+			retval[e[key]] = e
+		})
+		return retval
+	}
+
+	function discover_valid_classes_selected(
+		selected_term: Term | undefined,
+		classes_textboxes: Record<number, string>,
+		classes_pulled_for_departments_for_terms: Record<string, Record<string, Record<string, Class[]> | undefined>>
+	): undefined | null | string {
 		if (selected_term === undefined) {
 			return undefined
 		}
@@ -93,6 +105,11 @@
 				console.log(dept_name_abbr)
 				if (dept_name_abbr in classes_pulled_for_departments) {
 					// Check if number is valid
+					if (classes_pulled_for_departments[dept_name_abbr] === undefined) {
+						// Do nothing, it is not loaded yet
+					} else {
+						// TODO get information for the class
+					}
 				} else {
 					// Pull the number and set it to undefined
 					classes_pulled_for_departments[dept_name_abbr] = undefined
@@ -115,11 +132,12 @@
 		})
 			.then((x) => x.json())
 			.then((x) => {
-				classes_pulled_for_departments_for_terms[term][department] = x.response
+				classes_pulled_for_departments_for_terms[term][department] = dict_from_arr_based_on_key(x.response, 'classNumber')
 				console.log(x.response)
 			})
 			.catch((err) => {
 				console.log(`error reading department: ${err}`)
+				// TODO handle a network error
 			})
 	}
 
@@ -147,6 +165,7 @@
 			})
 			.catch((err) => {
 				console.log(`error reading form defaults: ${err}`)
+				// TODO Handle a network error
 			})
 	}
 	// Get the terms and departments as soon as possible
