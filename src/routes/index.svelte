@@ -122,7 +122,6 @@
 		if (valid_classes_selected.size !== valid_classes_selected_deletewatcher.size) {
 			valid_classes_selected = new Set(valid_classes_selected_deletewatcher)
 		}
-
 		if (invalid_dept !== null) return `Invalid department: ${invalid_dept}`
 		if (invalid_course !== null) return `Invalid course: ${invalid_course}`
 		return null
@@ -151,24 +150,31 @@
 	}
 
 	async function read_class_rich_info(class_name: string, class_number: string, class_info: Class) {
-		if (class_info.human_readable_name !== undefined) return
 		await fetch(`http://127.0.0.1:8081/classinfo/${class_name}%20${class_number}/${class_info.edition}`, {
 			method: "GET",
 		})
 			.then((x) => {console.log(x); return x.text()})
 			.then((x) => {
-				class_info['human_readable_description'] = x
+				class_info.human_readable_description = x
 				class_info.human_readable_name = x
+				console.log(class_info)
 			})
 			.catch((err) => {
 				console.log(`error reading department: ${err}`)
 				// TODO handle a network error
 			})
-		courses_for_last_valid_department_invalid_number = courses_for_last_valid_department_invalid_number 
 	}
 
-	function read_class_rich_info_wrapper(course: Class) {
-		return read_class_rich_info(department_for_last_valid_department_invalid_number!.abbreviation, course.classNumber, course)
+	async function read_class_rich_info_wrapper(course: Class) {
+		if (course.human_readable_description !== undefined) return
+		// Set the description to null so we know to draw the sections (now rather than all at once when looping over classes for performance)
+		course.human_readable_description = null
+		course.human_readable_name = null
+		// Redraw for sections
+		courses_for_last_valid_department_invalid_number = courses_for_last_valid_department_invalid_number 
+		read_class_rich_info(department_for_last_valid_department_invalid_number!.abbreviation, course.classNumber, course)
+		// Redraw for class description
+		courses_for_last_valid_department_invalid_number = courses_for_last_valid_department_invalid_number 
 	}
 
 	async function read_form_defaults() {
@@ -223,11 +229,12 @@
 					<span slot="description">{department_for_last_valid_department_invalid_number.abbreviation} {course.classNumber}</span>
 				</Header>
 				<Content>
-					{#if course.human_readable_description !== undefined}
+					{#if course.human_readable_description !== undefined && course.human_readable_description !== null}
 						{@html course.human_readable_description}
 					{:else}
 						{silly_loading_name()} <br/>
 					{/if}
+					{#if course.human_readable_description !== undefined}
 					<Accordion>
 						{#each course.sections as section}
 							<Panel color="secondary">
@@ -243,6 +250,7 @@
 							</Panel>
 						{/each}
 					</Accordion>
+					{/if}
 					{#if course.classComments !== ''}{course.classComments.toLowerCase().replaceAll('<br>', '')}<br/>{/if}
 				</Content>
 			</Panel>

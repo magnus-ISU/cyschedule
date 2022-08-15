@@ -54,6 +54,6 @@ export interface Class {
 	classPreReqs: string
 	sections: Section[]
 	edition: string
-	human_readable_description: string | undefined
-	human_readable_name: string | undefined
+	human_readable_description: string | null | undefined
+	human_readable_name: string | null | undefined
 }
