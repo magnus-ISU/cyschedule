@@ -86,7 +86,7 @@
 	let valid_classes_selected_deletewatcher: Set<string> = new Set()
 
 	let courses_for_last_valid_department_invalid_number: Class[] = []
-	let department_for_last_valid_department_invalid_number: Department
+	let department_for_last_valid_department_invalid_number: Department | undefined = undefined
 
 	function dept_name_from_class_title(s: string) {
 		return (s.match(dept_name_regex) || [""])[0].trim()
@@ -186,6 +186,11 @@
 		return null
 	}
 
+	function reset_search() {
+		//courses_for_last_valid_department_invalid_number = []
+		department_for_last_valid_department_invalid_number = undefined
+	}
+
 	$: invalid_department_name = discover_valid_classes_selected(selected_term, classes_textboxes, classes_pulled_for_departments_for_terms)
 	$: console.log(valid_classes_selected)
 
@@ -255,7 +260,7 @@
 
 {#if terms !== undefined && selected_term !== undefined}
 	<TabBar tabs={terms} let:tab bind:active={selected_term}>
-		<Tab {tab}>
+		<Tab {tab} on:click={reset_search}>
 			<Label>{tab.semesterTitle}</Label>
 		</Tab>
 	</TabBar>
@@ -265,6 +270,7 @@
 		<p>{invalid_department_name} is invalid</p>
 	{/if}
 	<Accordion multiple>
+		{#if department_for_last_valid_department_invalid_number !== undefined}
 		{#each courses_for_last_valid_department_invalid_number as course}
 			<Panel on:click={()=>{read_class_rich_info(department_for_last_valid_department_invalid_number.abbreviation, course.classNumber, course)}}>
 				<Header>
@@ -296,6 +302,7 @@
 				</Content>
 			</Panel>
 		{/each}
+		{/if}
 	</Accordion>
 {/if}
 <br/>
