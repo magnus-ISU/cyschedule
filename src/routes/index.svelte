@@ -4,65 +4,7 @@
 	import Textfield from "@smui/textfield"
 	import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
 
-	interface Term {
-		semesterTitle: string
-		id: number
-	}
-
-	interface Department {
-		id: number
-		title: string
-		abbreviation: string
-	}
-
-	interface SectionTime {
-		id: number
-		sectionSequenceNumber: number
-		instructionType: string
-		instrName: string
-		buildingName: string
-		roomNum: string
-		meetTimeDisplay: string
-		startTime: string
-		stopTime: string
-		meetDaysDisplay: string
-		meetDays: string
-	}
-
-	interface Section {
-		referenceNumber: string
-		openseats: number
-		creditLow: number
-		creditHigh: number
-		startDateVal: string
-		stopDateVal: string
-		sectionTimes: SectionTime[]
-		partialSemesterComment: string
-		specialPermissionRequirementsDisplay: string
-		workshopFeeDisplay: string
-		secondaryDeliveryTypeDisplay: string
-		deliveryTypeDisplay: string
-		specialFeeTypeDisplay: string
-		offCampusDisplay: string
-		offCampusLocation: string
-		deliveryUrl: string
-		startDate: string
-		stopDate: string
-		courseId: number
-		sectionString: string
-	}
-
-	interface Class {
-		id: number
-		classNumber: string
-		classTitle: string
-		classComments: string
-		classPreReqs: string
-		sections: Section[]
-		edition: string
-		human_readable_description: string | undefined
-		human_readable_name: string | undefined
-	}
+	import type {Class, Term, Department, Section, SectionTime} from "../javascript/types";
 
 	const hardcoded_departments = {
 		'cs': 'com s'
@@ -187,7 +129,6 @@
 	}
 
 	function reset_search() {
-		//courses_for_last_valid_department_invalid_number = []
 		department_for_last_valid_department_invalid_number = undefined
 	}
 
@@ -224,6 +165,10 @@
 				// TODO handle a network error
 			})
 		courses_for_last_valid_department_invalid_number = courses_for_last_valid_department_invalid_number 
+	}
+
+	function read_class_rich_info_wrapper(course: Class) {
+		return read_class_rich_info(department_for_last_valid_department_invalid_number!.abbreviation, course.classNumber, course)
 	}
 
 	async function read_form_defaults() {
@@ -272,7 +217,7 @@
 	<Accordion multiple>
 		{#if department_for_last_valid_department_invalid_number !== undefined}
 		{#each courses_for_last_valid_department_invalid_number as course}
-			<Panel on:click={()=>{read_class_rich_info(department_for_last_valid_department_invalid_number.abbreviation, course.classNumber, course)}}>
+			<Panel on:click={()=>{read_class_rich_info_wrapper(course)}}>
 				<Header>
 					{course.classTitle}
 					<span slot="description">{department_for_last_valid_department_invalid_number.abbreviation} {course.classNumber}</span>
