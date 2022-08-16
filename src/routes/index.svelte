@@ -102,7 +102,10 @@
 				} else {
 					// Pull the number and set it to undefined
 					classes_pulled_for_departments[dept_name_abbr] = undefined
-					read_department_classes(selected_term.id, dept_name_abbr, classes_pulled_for_departments_for_terms)
+					read_department_classes(selected_term.id, dept_name_abbr, classes_pulled_for_departments_for_terms).then(() => {
+						// Recursively call to find out the classes. This cannot repeat twice so this shouldn't matter that much
+						invalid_department_name = discover_valid_classes_selected(selected_term, classes_textboxes, classes_pulled_for_departments_for_terms)
+					})
 				}
 			} else {
 				invalid_dept = dept_name
