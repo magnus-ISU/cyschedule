@@ -5,6 +5,8 @@
 	import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
 
 	import type {Class, Term, Department, Section, SectionTime} from "../javascript/types";
+	import {silly_loading_name} from "../javascript/helper"
+	import {read_form_defaults, read_department_classes, read_class_rich_info} from "../javascript/network"
 
 	const hardcoded_departments = {
 		'cs': 'com s'
@@ -15,7 +17,7 @@
 
 	let terms: Term[] | undefined
 	let selected_term: Term | undefined
-	let departments: Record<string, Department>
+	let departments: Record<string, Department> | undefined = undefined
 
 	// TODO change class numbers to actual numbers
 	let classes_textboxes: Record<number, string> = {}
@@ -51,19 +53,6 @@
 
 	function formatted_section_instructor_location(sectionTime: SectionTime): string {
 		return `${sectionTime.instrName} @ ${sectionTime.buildingName} ${sectionTime.roomNum.trim()}`
-	}
-
-	function silly_loading_name() {
-		let silly = ['Searching for squirrels...', 'Looking for APIs']
-		return silly[~~(Math.random() * silly.length)];
-	}
-
-	function dict_from_arr_based_on_key(arr: any[], key: string): Record<string, any> {
-		let retval: Record<string, any> = {}
-		arr.forEach((e: any) => {
-			retval[e[key].toLowerCase()] = e
-		})
-		return retval
 	}
 
 	function discover_valid_classes_selected(
@@ -107,13 +96,13 @@
 					} else {
 						// TODO invalid number, valid department
 						invalid_course = c
-						department_for_last_valid_department_invalid_number = departments[dept_name_abbr]
+						department_for_last_valid_department_invalid_number = departments![dept_name_abbr]
 						courses_for_last_valid_department_invalid_number = Object.values(dept_classes).filter((v) => v.classNumber.includes(class_number))
 					}
 				} else {
 					// Pull the number and set it to undefined
 					classes_pulled_for_departments[dept_name_abbr] = undefined
-					read_department_classes(selected_term.id, dept_name_abbr)
+					read_department_classes(selected_term.id, dept_name_abbr, classes_pulled_for_departments_for_terms)
 				}
 			} else {
 				invalid_dept = dept_name
@@ -134,37 +123,6 @@
 	$: invalid_department_name = discover_valid_classes_selected(selected_term, classes_textboxes, classes_pulled_for_departments_for_terms)
 	$: console.log(valid_classes_selected)
 
-	async function read_department_classes(term: number, department: string) {
-		fetch(`http://127.0.0.1:8081/department/${term}/${department}`, {
-			method: "GET",
-		})
-			.then((x) => x.json())
-			.then((x) => {
-				classes_pulled_for_departments_for_terms[term][department] = dict_from_arr_based_on_key(x.response, 'classNumber')
-				console.log(x)
-			})
-			.catch((err) => {
-				console.log(`error reading department: ${err}`)
-				// TODO handle a network error
-			})
-	}
-
-	async function read_class_rich_info(class_name: string, class_number: string, class_info: Class) {
-		await fetch(`http://127.0.0.1:8081/classinfo/${class_name}%20${class_number}/${class_info.edition}`, {
-			method: "GET",
-		})
-			.then((x) => {console.log(x); return x.text()})
-			.then((x) => {
-				class_info.human_readable_description = x
-				class_info.human_readable_name = x
-				console.log(class_info)
-			})
-			.catch((err) => {
-				console.log(`error reading department: ${err}`)
-				// TODO handle a network error
-			})
-	}
-
 	async function read_class_rich_info_wrapper(course: Class) {
 		if (course.human_readable_description !== undefined) return
 		// Set the description to null so we know to draw the sections (now rather than all at once when looping over classes for performance)
@@ -172,41 +130,24 @@
 		course.human_readable_name = null
 		// Redraw for sections
 		courses_for_last_valid_department_invalid_number = courses_for_last_valid_department_invalid_number 
-		read_class_rich_info(department_for_last_valid_department_invalid_number!.abbreviation, course.classNumber, course)
+		await read_class_rich_info(department_for_last_valid_department_invalid_number!.abbreviation, course.classNumber, course)
 		// Redraw for class description
 		courses_for_last_valid_department_invalid_number = courses_for_last_valid_department_invalid_number 
 	}
 
-	async function read_form_defaults() {
-		await fetch(`http://127.0.0.1:8081/info/`, {
-			method: "GET",
-		})
-			.then((x) => x.json())
-			.then((x) => {
-				x.semesters.forEach((e: Term) => {
-					classes_textboxes[e.id] = ""
-				})
-				selected_term = x.semesters[0]
-				terms = x.semesters
-				console.log('departments: ', x.departments)
-				departments = dict_from_arr_based_on_key(x.departments, 'abbreviation')
-				x.departments.forEach((d: Department) => {
-					const abbr = d.abbreviation.toLowerCase()
-					const titl = d.title.toLowerCase()
-					valid_departments.add(abbr)
-					valid_departments.add(titl)
-					department_titles_to_abbreviations[titl] = abbr
-				})
-				console.log(valid_departments)
-				console.log(terms)
-			})
-			.catch((err) => {
-				console.log(`error reading form defaults: ${err}`)
-				// TODO Handle a network error
-			})
+	async function read_form_defaults_wrapper() {
+		const form_defaults = await read_form_defaults(classes_textboxes, terms, valid_departments, department_titles_to_abbreviations)
+		classes_textboxes = classes_textboxes
+		valid_departments = valid_departments
+		department_titles_to_abbreviations = department_titles_to_abbreviations
+		selected_term = form_defaults[0]
+		terms = terms
+		departments = form_defaults[1]
+		console.log('selected_term',selected_term)
+		console.log('departments',departments)
 	}
 	// Get the terms and departments as soon as possible
-	read_form_defaults()
+	read_form_defaults_wrapper()
 </script>
 
 {#if terms !== undefined && selected_term !== undefined}
