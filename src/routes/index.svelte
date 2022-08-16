@@ -5,8 +5,8 @@
 	import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
 
 	import type {Class, Term, Department, Section, SectionTime} from "../javascript/types";
-	import {silly_loading_name} from "../javascript/helper"
-	import {read_form_defaults, read_department_classes, read_class_rich_info} from "../javascript/network"
+	import {dict_from_arr_based_on_key, silly_loading_name} from "../javascript/helper"
+	import {read_department_classes, read_class_rich_info} from "../javascript/network"
 
 	const hardcoded_departments = {
 		'cs': 'com s'
@@ -17,7 +17,7 @@
 
 	let terms: Term[] | undefined
 	let selected_term: Term | undefined
-	let departments: Record<string, Department> | undefined = undefined
+	let departments: Record<string, Department>
 
 	// TODO change class numbers to actual numbers
 	let classes_textboxes: Record<number, string> = {}
@@ -96,7 +96,7 @@
 					} else {
 						// TODO invalid number, valid department
 						invalid_course = c
-						department_for_last_valid_department_invalid_number = departments![dept_name_abbr]
+						department_for_last_valid_department_invalid_number = departments[dept_name_abbr]
 						courses_for_last_valid_department_invalid_number = Object.values(dept_classes).filter((v) => v.classNumber.includes(class_number))
 					}
 				} else {
@@ -135,19 +135,36 @@
 		courses_for_last_valid_department_invalid_number = courses_for_last_valid_department_invalid_number 
 	}
 
-	async function read_form_defaults_wrapper() {
-		const form_defaults = await read_form_defaults(classes_textboxes, terms, valid_departments, department_titles_to_abbreviations)
-		classes_textboxes = classes_textboxes
-		valid_departments = valid_departments
-		department_titles_to_abbreviations = department_titles_to_abbreviations
-		selected_term = form_defaults[0]
-		terms = terms
-		departments = form_defaults[1]
-		console.log('selected_term',selected_term)
-		console.log('departments',departments)
+	async function read_form_defaults() {
+		await fetch(`http://127.0.0.1:8081/info/`, {
+			method: "GET",
+		})
+			.then((x) => x.json())
+			.then((x) => {
+				x.semesters.forEach((e: Term) => {
+					classes_textboxes[e.id] = ""
+				})
+				selected_term = x.semesters[0]
+				terms = x.semesters
+				console.log('departments: ', x.departments)
+				departments = dict_from_arr_based_on_key(x.departments, 'abbreviation')
+				x.departments.forEach((d: Department) => {
+					const abbr = d.abbreviation.toLowerCase()
+					const titl = d.title.toLowerCase()
+					valid_departments.add(abbr)
+					valid_departments.add(titl)
+					department_titles_to_abbreviations[titl] = abbr
+				})
+				console.log(valid_departments)
+				console.log(terms)
+			})
+			.catch((err) => {
+				console.log(`error reading form defaults: ${err}`)
+				// TODO Handle a network error
+			})
 	}
 	// Get the terms and departments as soon as possible
-	read_form_defaults_wrapper()
+	read_form_defaults()
 </script>
 
 {#if terms !== undefined && selected_term !== undefined}
