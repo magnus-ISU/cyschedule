@@ -4,16 +4,14 @@
 	import Textfield from "@smui/textfield"
 	import Accordion, { Panel, Header, Content } from '@smui-extra/accordion';
 
-	import type {Class, Term, Department, Section, SectionTime} from "../javascript/types";
-	import {dict_from_arr_based_on_key, silly_loading_name} from "../javascript/helper"
+	import type {Class, Term, Department} from "../javascript/types";
+	import {dict_from_arr_based_on_key, silly_loading_name, dept_name_from_class_title, class_number_from_class_title} from "../javascript/helper"
 	import {read_department_classes, read_class_rich_info} from "../javascript/network"
+	import ClassInfo from "../components/ClassInfo.svelte"
 
 	const hardcoded_departments = {
 		'cs': 'com s'
 	}
-
-	const dept_name_regex = /[a-zA-Z ]+/
-	const class_number_regex = /[0-9]+/
 
 	let terms: Term[] | undefined
 	let selected_term: Term | undefined
@@ -32,28 +30,6 @@
 	let courses_for_last_valid_department_invalid_number: Class[] = []
 	let department_for_last_valid_department_invalid_number: Department | undefined = undefined
 
-	function dept_name_from_class_title(s: string) {
-		return (s.match(dept_name_regex) || [""])[0].trim()
-	}
-	function class_number_from_class_title(s: string) {
-		return (s.match(class_number_regex) || [""])[0].trim()
-	}
-
-	function timestamp_to_military(ts: string): string {
-		let s = ts.split(':',3)
-		return `${s[0]}:${s[1]}`
-	}
-
-	function formatted_section_time(sectionTime: SectionTime): string {
-		if (sectionTime.meetTimeDisplay.startsWith('Arrang')) {
-			return `${sectionTime.meetTimeDisplay} ${sectionTime.meetDaysDisplay}`
-		}
-		return `meets ${timestamp_to_military(sectionTime.startTime)}-${timestamp_to_military(sectionTime.stopTime)} ${sectionTime.meetDays.replaceAll(' ', '')}`
-	}
-
-	function formatted_section_instructor_location(sectionTime: SectionTime): string {
-		return `${sectionTime.instrName} @ ${sectionTime.buildingName} ${sectionTime.roomNum.trim()}`
-	}
 
 	function discover_valid_classes_selected(
 		selected_term: Term | undefined,
@@ -185,35 +161,7 @@
 		{#if department_for_last_valid_department_invalid_number !== undefined}
 		{#each courses_for_last_valid_department_invalid_number as course}
 			<Panel on:click={()=>{read_class_rich_info_wrapper(course)}}>
-				<Header>
-					{course.classTitle}
-					<span slot="description">{department_for_last_valid_department_invalid_number.abbreviation} {course.classNumber}</span>
-				</Header>
-				<Content>
-					{#if course.human_readable_description !== undefined && course.human_readable_description !== null}
-						{@html course.human_readable_description}
-					{:else}
-						{silly_loading_name()} <br/>
-					{/if}
-					{#if course.human_readable_description !== undefined}
-					<Accordion>
-						{#each course.sections as section}
-							<Panel color="secondary">
-								<Header>
-									{section.sectionString}
-									<span slot="description">{`${section.openseats} open seats`}</span>
-								</Header>
-								<Content>
-									{#each section.sectionTimes as t}
-										<p> {`${formatted_section_instructor_location(t)} ${formatted_section_time(t)}`} </p>
-									{/each}
-								</Content>
-							</Panel>
-						{/each}
-					</Accordion>
-					{/if}
-					{#if course.classComments !== ''}{course.classComments.toLowerCase().replaceAll('<br>', '')}<br/>{/if}
-				</Content>
+				<ClassInfo {department_for_last_valid_department_invalid_number} {course}/>
 			</Panel>
 		{/each}
 		{/if}
